@@ -23,7 +23,10 @@ class ChatController extends Controller
             ->orderByDesc('updated_at')
             ->get();
 
-        // Attach unread count per conversation
+        // Load contacts so we can show custom names
+        $contactNames = \App\Models\Contact::where('user_id', $authId)
+            ->pluck('name', 'contact_id');
+
         $conversations->each(function ($conv) use ($authId) {
             $conv->unread_count = Message::where('conversation_id', $conv->id)
                 ->where('sender_id', '!=', $authId)
@@ -31,7 +34,7 @@ class ChatController extends Controller
                 ->count();
         });
 
-        return view('app', compact('conversations'));
+        return view('app', compact('conversations', 'contactNames'));
     }
 
     public function chatData($userId)

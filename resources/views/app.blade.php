@@ -4,7 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>Laravel Chat with Laravel Echo and Reverb</title>
+    <title>Laravel Chatbot</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     @vite(['resources/js/app.js'])
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -18,7 +19,7 @@
         .header-actions { display: flex; gap: 7px; }
         .header-actions a { color: #aebac1; text-decoration: none; font-size: 12px; padding: 5px 10px; border-radius: 20px; background: #2a3942; }
         .header-actions a:hover { background: #374248; }
-        .search-box { padding: 8px 10px; }
+        .avatar img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; position: absolute; top: 0; left: 0; }        .search-box { padding: 8px 10px; }
         .search-box input { width: 100%; padding: 9px 14px; background: #202c33; border: none; border-radius: 8px; color: #e9edef; font-size: 14px; }
         .search-box input:focus { outline: none; }
         .search-box input::placeholder { color: #667781; }
@@ -63,13 +64,38 @@
         .input-area input { flex: 1; padding: 11px 15px; background: #2a3942; border: none; border-radius: 8px; color: #e9edef; font-size: 15px; }
         .input-area input:focus { outline: none; }
         .input-area input::placeholder { color: #667781; }
-        .send-btn { background: #00a884; color: #fff; border: none; padding: 11px 22px; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 500; }
+        .send-btn { background: #00a884; color: #fff; border: none; padding: 11px 16px; border-radius: 50%; cursor: pointer; font-size: 16px; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; }
         .send-btn:hover { background: #06cf9c; }
         .empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: #667781; text-align: center; gap: 10px; }
         .empty-state span { font-size: 48px; }
         .empty-state h3 { color: #e9edef; font-size: 20px; font-weight: 400; }
         ::-webkit-scrollbar { width: 5px; }
         ::-webkit-scrollbar-thumb { background: #374248; border-radius: 3px; }
+
+        /* typing indicator */
+        .typing-indicator {
+            display: none;
+            align-items: center;
+            gap: 4px;
+            padding: 6px 12px;
+            background: #202c33;
+            border-radius: 18px;
+            width: fit-content;
+            margin-bottom: 8px;
+        }
+        .typing-indicator.show { display: flex; }
+        .typing-indicator span {
+            width: 7px; height: 7px;
+            background: #8696a0;
+            border-radius: 50%;
+            animation: bounce 1.2s infinite;
+        }
+        .typing-indicator span:nth-child(2) { animation-delay: .2s; }
+        .typing-indicator span:nth-child(3) { animation-delay: .4s; }
+        @keyframes bounce {
+            0%,60%,100% { transform: translateY(0); }
+            30%          { transform: translateY(-6px); }
+        }
     </style>
 </head>
 <body>
@@ -77,11 +103,12 @@
 
     <div class="sidebar" id="sidebar">
         <div class="sidebar-header">
-            <h2>Laravel Chats</h2>
+            <h2><i class="fa-brands fa-whatsapp" style="color:#00a884"></i> WhatsApp</h2>
             <div class="header-actions">
-                <a href="/contacts/add">+ Add</a>
-                <a href="/contacts">Contacts</a>
-                <a href="/logout">Logout</a>
+                <a href="/contacts/add" title="Add Contact"><i class="fa-solid fa-user-plus"></i></a>
+                <a href="/contacts" title="Contacts"><i class="fa-solid fa-address-book"></i></a>
+                <a href="/profile" title="Profile"><i class="fa-solid fa-circle-user"></i></a>
+                <a href="/logout" title="Logout"><i class="fa-solid fa-right-from-bracket"></i></a>
             </div>
         </div>
         <div class="search-box">
@@ -89,21 +116,29 @@
         </div>
         <div class="chat-list" id="chatList">
             @forelse($conversations as $conv)
-                @php $other = $conv->otherUser(auth()->id()); $last = $conv->latestMessage; @endphp
+                @php
+                    $other       = $conv->otherUser(auth()->id());
+                    $last        = $conv->latestMessage;
+                    $displayName = $contactNames[$other->id] ?? $other->name;
+                @endphp
                 <div class="chat-item"
                      id="ci-{{ $other->id }}"
                      data-uid="{{ $other->id }}"
-                     data-name="{{ $other->name }}"
+                     data-name="{{ $displayName }}"
                      data-phone="{{ $other->phone }}"
                      data-convid="{{ $conv->id }}"
                      onclick="openChat(this)">
                     <div class="avatar">
-                        {{ strtoupper(substr($other->name,0,1)) }}
+                        @if($other->avatar)
+                            <img src="{{ asset('storage/'.$other->avatar) }}" alt="">
+                        @else
+                            {{ strtoupper(substr($displayName,0,1)) }}
+                        @endif
                         <span class="online-dot" id="dot-{{ $other->id }}"></span>
                     </div>
                     <div class="chat-info">
                         <div class="chat-info-top">
-                            <span class="chat-name">{{ $other->name }}</span>
+                            <span class="chat-name">{{ $displayName }}</span>
                             <span class="chat-time" id="ct-{{ $other->id }}">{{ $last ? $last->created_at->format('H:i') : '' }}</span>
                         </div>
                         <div class="chat-bottom">
@@ -120,8 +155,8 @@
 
     <div class="chat-area" id="chatArea">
         <div class="empty-state">
-            <span>💬</span>
-            <h3>Laravel Chat with Laravel Echo and Reverb</h3>
+            <i class="fa-brands fa-whatsapp" style="font-size:80px;color:#00a884"></i>
+            <h3>WhatsApp Clone</h3>
             <p>Select a chat to start messaging</p>
         </div>
     </div>
@@ -178,11 +213,18 @@ function openChat(el) {
 
 /* ── BUILD CHAT UI ── */
 function buildChatUI() {
-    const online = !!onlineUsers[activeUserId];
+    const online   = !!onlineUsers[activeUserId];
+    const item     = document.getElementById(`ci-${activeUserId}`);
+    const avatarEl = item?.querySelector('.avatar');
+    const hasImg   = avatarEl?.querySelector('img');
+    const avatarHtml = hasImg
+        ? `<img src="${hasImg.src}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%;position:absolute;top:0;left:0">`
+        : x(activeName[0].toUpperCase());
+
     document.getElementById('chatArea').innerHTML = `
         <div class="chat-header">
-            <div class="avatar">
-                ${x(activeName[0].toUpperCase())}
+            <div class="avatar" style="overflow:hidden">
+                ${avatarHtml}
                 <span class="online-dot ${online?'show':''}" id="hDot"></span>
             </div>
             <div class="chat-header-info">
@@ -190,10 +232,14 @@ function buildChatUI() {
                 <p class="status ${online?'online':''}" id="hStatus">${online ? 'online' : x(activePhone)}</p>
             </div>
         </div>
-        <div class="messages-box" id="msgBox"></div>
+        <div class="messages-box" id="msgBox">
+            <div class="typing-indicator" id="typingIndicator">
+                <span></span><span></span><span></span>
+            </div>
+        </div>
         <div class="input-area">
-            <input id="msgInput" placeholder="Type a message" onkeydown="if(event.key==='Enter')send()">
-            <button class="send-btn" onclick="send()">Send</button>
+            <input id="msgInput" placeholder="Type a message" onkeydown="if(event.key==='Enter')send()" oninput="onTyping()">
+            <button class="send-btn" onclick="send()"><i class="fa-solid fa-paper-plane"></i></button>
         </div>`;
 }
 
@@ -201,8 +247,11 @@ function buildChatUI() {
 function renderMessages(msgs) {
     const box = document.getElementById('msgBox');
     if (!box) return;
+    // Keep typing indicator, clear messages before it
+    const indicator = document.getElementById('typingIndicator');
     box.innerHTML = '';
     msgs.forEach(m => addMsg(m, false));
+    if (indicator) box.appendChild(indicator);
     scrollDown();
 }
 
@@ -213,7 +262,10 @@ function addMsg(m, scroll = true) {
 
     const mine = m.sender_id == ME;
     const ts   = m.tick_status || (m.is_read ? 'read' : (m.delivered_at ? 'delivered' : 'sent'));
-    const time = m.created_at ? new Date(m.created_at).toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',hour12:false}) : '';
+    // Use current time for brand-new messages (no created_at yet), else parse from server
+    const time = m.created_at
+        ? new Date(m.created_at).toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',hour12:false})
+        : new Date().toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',hour12:false});
 
     const div = document.createElement('div');
     div.className = `msg ${mine ? 'sent' : 'received'}`;
@@ -226,7 +278,7 @@ function addMsg(m, scroll = true) {
                 ${mine ? `<span class="tick ${ts}-tick" id="tick-${m.id}">${ts==='sent'?'✓':'✓✓'}</span>` : ''}
             </div>
         </div>`;
-    box.appendChild(div);
+    box.insertBefore(div, document.getElementById('typingIndicator'));
     if (scroll) scrollDown();
 }
 
@@ -247,6 +299,27 @@ function send() {
         addMsg(m);
         updatePreview(activeUserId, text);
     });
+}
+
+/* ── TYPING ── */
+let typingTimer = null;
+
+function onTyping() {
+    if (!activeConvId || !window.Echo) return;
+    // whisper to the other user
+    window.Echo.private(`chat.${activeConvId}`).whisper('typing', { userId: ME });
+    // stop typing after 2s of no input
+    clearTimeout(typingTimer);
+    typingTimer = setTimeout(() => {
+        window.Echo.private(`chat.${activeConvId}`).whisper('stopTyping', { userId: ME });
+    }, 2000);
+}
+
+function showTyping(show) {
+    const el = document.getElementById('typingIndicator');
+    if (!el) return;
+    el.classList.toggle('show', show);
+    if (show) scrollDown();
 }
 
 /* ── MARK READ ── */
@@ -334,6 +407,23 @@ function setDot(uid, on) {
     }
 }
 
+/* ── HEADER TYPING STATUS ── */
+let stopTypingTimer = null;
+function setHeaderTyping(isTyping) {
+    const hs = document.getElementById('hStatus');
+    if (!hs) return;
+    if (isTyping) {
+        hs.textContent = 'typing...';
+        hs.className   = 'status online';
+        clearTimeout(stopTypingTimer);
+        stopTypingTimer = setTimeout(() => setHeaderTyping(false), 3000);
+    } else {
+        const online = !!onlineUsers[activeUserId];
+        hs.textContent = online ? 'online' : activePhone;
+        hs.className   = `status ${online ? 'online' : ''}`;
+    }
+}
+
 /* ════════════════════════════════════════
    LARAVEL ECHO — SUBSCRIBE ALL CONVS
 ════════════════════════════════════════ */
@@ -363,6 +453,20 @@ function initEcho() {
         })
         .listen('.MessageDelivered', e => {
             setTick(e.message_id, 'delivered');
+        })
+        .listenForWhisper('typing', e => {
+            if (e.userId == ME) return;
+            if (activeConvId == {{ $conv->id }}) {
+                showTyping(true);
+                setHeaderTyping(true);
+            }
+        })
+        .listenForWhisper('stopTyping', e => {
+            if (e.userId == ME) return;
+            if (activeConvId == {{ $conv->id }}) {
+                showTyping(false);
+                setHeaderTyping(false);
+            }
         });
     @endforeach
 
