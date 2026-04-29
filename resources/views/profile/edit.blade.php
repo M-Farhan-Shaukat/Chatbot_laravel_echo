@@ -1,31 +1,64 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" id="htmlRoot">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Edit Profile</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <style>
+        :root {
+            --bg-body:    #111b21;
+            --bg-header:  #202c33;
+            --bg-card:    #202c33;
+            --border:     #2a3942;
+            --text:       #e9edef;
+            --text-sub:   #667781;
+            --accent:     #00a884;
+            --accent-h:   #06cf9c;
+            --input-bg:   transparent;
+            --ok-bg:      #0d2b22;
+            --ok-color:   #00a884;
+            --action-color: #00a884;
+        }
+        [data-theme="light"] {
+            --bg-body:    #f0f2f5;
+            --bg-header:  #0084ff;
+            --bg-card:    #ffffff;
+            --border:     #e4e6eb;
+            --text:       #050505;
+            --text-sub:   #65676b;
+            --accent:     #0084ff;
+            --accent-h:   #0073e6;
+            --input-bg:   transparent;
+            --ok-bg:      #e7f3ff;
+            --ok-color:   #0084ff;
+            --action-color: #ffffff;
+        }
         *{margin:0;padding:0;box-sizing:border-box}
-        body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#111b21;min-height:100vh}
-        .header{background:#202c33;padding:14px 20px;display:flex;align-items:center;gap:16px;border-bottom:1px solid #2a3942}
-        .header a{color:#00a884;text-decoration:none;font-size:14px}
-        .header h2{color:#e9edef;font-size:18px;font-weight:400}
+        body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg-body);min-height:100vh}
+        .header{background:var(--bg-header);padding:14px 20px;display:flex;align-items:center;gap:16px;border-bottom:1px solid var(--border)}
+        .header a{color:var(--action-color);text-decoration:none;font-size:14px}
+        .header h2{color:var(--action-color);font-size:18px;font-weight:400}
         .body{max-width:500px;margin:24px auto;padding:0 16px}
         .avatar-wrap{display:flex;flex-direction:column;align-items:center;margin-bottom:32px}
-        .av{width:100px;height:100px;border-radius:50%;background:linear-gradient(135deg,#667781,#374248);display:flex;align-items:center;justify-content:center;color:#e9edef;font-size:36px;font-weight:600;overflow:hidden;margin-bottom:12px;cursor:pointer;position:relative}
+        .av{width:100px;height:100px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;color:#fff;font-size:36px;font-weight:600;overflow:hidden;margin-bottom:12px;cursor:pointer;position:relative}
         .av img{width:100%;height:100%;object-fit:cover}
-        .av-hint{color:#00a884;font-size:13px;cursor:pointer}
-        .card{background:#202c33;border-radius:12px;padding:24px;margin-bottom:16px}
-        label{display:block;color:#8696a0;font-size:12px;margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px}
-        input,textarea{width:100%;padding:12px 0;background:transparent;border:none;border-bottom:1px solid #2a3942;color:#e9edef;font-size:15px;font-family:inherit;resize:none}
-        input:focus,textarea:focus{outline:none;border-bottom-color:#00a884}
-        input::placeholder,textarea::placeholder{color:#667781}
-        .hint{color:#667781;font-size:12px;margin-top:6px}
-        button{width:100%;padding:14px;background:#00a884;color:#fff;border:none;border-radius:8px;font-size:15px;font-weight:500;cursor:pointer;margin-top:8px}
-        button:hover{background:#06cf9c}
-        .ok{background:#0d2b22;color:#00a884;padding:10px 14px;border-radius:8px;font-size:13px;margin-bottom:16px;text-align:center}
+        .av-hint{color:var(--accent);font-size:13px;cursor:pointer}
+        .card{background:var(--bg-card);border-radius:12px;padding:24px;margin-bottom:16px;border:1px solid var(--border)}
+        label{display:block;color:var(--text-sub);font-size:12px;margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px}
+        input,textarea{width:100%;padding:12px 0;background:var(--input-bg);border:none;border-bottom:1px solid var(--border);color:var(--text);font-size:15px;font-family:inherit;resize:none}
+        input:focus,textarea:focus{outline:none;border-bottom-color:var(--accent)}
+        input::placeholder,textarea::placeholder{color:var(--text-sub)}
+        .hint{color:var(--text-sub);font-size:12px;margin-top:6px}
+        button[type=submit]{width:100%;padding:14px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:15px;font-weight:500;cursor:pointer;margin-top:8px}
+        button[type=submit]:hover{background:var(--accent-h)}
+        .ok{background:var(--ok-bg);color:var(--ok-color);padding:10px 14px;border-radius:8px;font-size:13px;margin-bottom:16px;text-align:center}
         #avatarInput{display:none}
     </style>
+    <script>
+        // Apply theme before render to avoid flash
+        (function(){ document.getElementById('htmlRoot').setAttribute('data-theme', localStorage.getItem('theme') || 'dark'); })();
+    </script>
 </head>
 <body>
 <div class="header">
@@ -66,9 +99,9 @@
             <div class="hint">{{ strlen($user->about ?? '') }}/200 characters</div>
         </div>
 
-        <div class="card" style="color:#667781;font-size:14px">
+        <div class="card">
             <label>Phone</label>
-            <div style="color:#e9edef;padding:12px 0;border-bottom:1px solid #2a3942">{{ $user->phone }}</div>
+            <div style="color:var(--text);padding:12px 0;border-bottom:1px solid var(--border)">{{ $user->phone }}</div>
             <div class="hint">Phone number cannot be changed</div>
         </div>
 
